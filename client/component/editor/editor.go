@@ -23,6 +23,8 @@ import (
 // onChange event for state to be saved to undo stack
 const saveStateTimeout = 500 * time.Millisecond
 
+var _ vecty.Component = &Editor{}
+
 // Editor implements editor logic
 type Editor struct {
 	vecty.Core

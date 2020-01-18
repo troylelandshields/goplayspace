@@ -52,39 +52,39 @@ func (s *Splitter) fireOnChangeEvent() {
 func (s *Splitter) onMouseDown(e *vecty.Event) {
 	e.Call("preventDefault")
 
-	s.node = e.Get("target")
-	s.node.Get("classList").Call("add", "moving")
-	js.Global.Get("document").Get("body").Get("classList").Call("add", "moving")
+	// s.node = e.Get("target")
+	// s.node.Get("classList").Call("add", "moving")
+	// js.Global.Get("document").Get("body").Get("classList").Call("add", "moving")
 
-	s.movingPane = document.QuerySelector(s.Selector)
-	if s.movingPane == nil {
-		panic("Can't find node using '" + s.Selector + "' query selector")
-	}
+	// s.movingPane = document.QuerySelector(s.Selector)
+	// if s.movingPane == nil {
+	// 	panic("Can't find node using '" + s.Selector + "' query selector")
+	// }
 
-	if s.OppositeSelector != "" {
-		s.oppositePane = document.QuerySelector(s.OppositeSelector)
-		if s.oppositePane == nil {
-			panic("Can't find node using '" + s.OppositeSelector + "' query selector")
-		}
-	}
+	// if s.OppositeSelector != "" {
+	// 	s.oppositePane = document.QuerySelector(s.OppositeSelector)
+	// 	if s.oppositePane == nil {
+	// 		panic("Can't find node using '" + s.OppositeSelector + "' query selector")
+	// 	}
+	// }
 
-	s.styleParam = "height"
-	s.screenCoord = "screenY"
-	sizeParam := "offsetHeight"
-	if s.Type == LeftPane || s.Type == RightPane {
-		s.styleParam = "width"
-		s.screenCoord = "screenX"
-		sizeParam = "offsetWidth"
-	}
+	// s.styleParam = "height"
+	// s.screenCoord = "screenY"
+	// sizeParam := "offsetHeight"
+	// if s.Type == LeftPane || s.Type == RightPane {
+	// 	s.styleParam = "width"
+	// 	s.screenCoord = "screenX"
+	// 	sizeParam = "offsetWidth"
+	// }
 
-	s.origSize = s.movingPane.Get(sizeParam).Int()
-	s.origScreenPos = e.Get(s.screenCoord).Int()
-	s.parentSize = s.movingPane.Get("parentNode").Get(sizeParam).Int()
+	// s.origSize = s.movingPane.Get(sizeParam).Int()
+	// s.origScreenPos = e.Get(s.screenCoord).Int()
+	// s.parentSize = s.movingPane.Get("parentNode").Get(sizeParam).Int()
 
-	s.isMoving = true
+	// s.isMoving = true
 
-	document.AddEventListener("mousemove", s.onDocumentMouseMove)
-	document.AddEventListener("mouseup", s.onDocumentMouseUp)
+	// document.AddEventListener("mousemove", s.onDocumentMouseMove)
+	// document.AddEventListener("mouseup", s.onDocumentMouseUp)
 }
 
 func (s *Splitter) updatePos() {

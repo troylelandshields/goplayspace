@@ -213,13 +213,6 @@ func (b *DrawBoard) doStep() {
 		// new step
 		b.step = b.step + 1
 
-		if b.step == len(b.Actions) {
-			//console.Log("Animation stopped")
-			return
-		}
-
-		//console.Log("Step:", b.step)
-
 		b.startTime = t
 		b.targetTime = t
 
@@ -227,7 +220,13 @@ func (b *DrawBoard) doStep() {
 		b.startY = b.y
 		b.startAngle = b.angle
 
-		a := b.Actions[b.step]
+		nextActions, ok := b.Actions.Next()
+		if !ok {
+			return
+		}
+
+		// TODO: allow multiple actors
+		a := nextActions[0]
 
 		delay := stepDelay
 

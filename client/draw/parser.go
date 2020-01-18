@@ -29,16 +29,41 @@ const (
 )
 
 type Action struct {
+	// Actor int //TODO:get this to work
 	Cmd  string
 	Kind int
 	FVal float64
 	SVal string
 }
 
-type ActionList []*Action
+type SimpleActionList struct {
+	currentIndex int
+	actions      []*Action
+}
 
-func ParseLines(lines []string) ActionList {
-	a := make(ActionList, 0)
+func (s *SimpleActionList) Next() ([]*Action, bool) {
+	if len(s.actions) <= s.currentIndex {
+		return nil, false
+	}
+
+	nextActions := s.actions[s.currentIndex : s.currentIndex+1]
+
+	s.currentIndex = s.currentIndex + 1
+
+	return nextActions, true
+}
+
+func (s *SimpleActionList) Available() bool {
+	return len(s.actions) > s.currentIndex
+}
+
+type ActionList interface {
+	Next() ([]*Action, bool)
+	Available() bool
+}
+
+func ParseLines(lines []string) *SimpleActionList {
+	var a []*Action
 
 	isDrawMode := false
 
@@ -106,7 +131,9 @@ func ParseLines(lines []string) ActionList {
 
 	}
 
-	return a
+	return &SimpleActionList{
+		actions: a,
+	}
 }
 
 func ParseString(s string) ActionList {

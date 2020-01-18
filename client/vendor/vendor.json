@@ -1,0 +1,55 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "yIkYzW7bzAD81zHyuCNmEj4+oxQ=",
+			"path": "github.com/gopherjs/gopherjs/js",
+			"revision": "ce3c9ade29deed38a85f259f40e823cc17213830",
+			"revisionTime": "2019-11-06T03:16:01Z"
+		},
+		{
+			"checksumSHA1": "Yf+xhGLACNlJu4CTarKe0XxpKiA=",
+			"path": "github.com/gopherjs/vecty",
+			"revision": "6a0a25ee5a96ce029e684c7da6333aa1f34f8f96",
+			"revisionTime": "2019-12-27T22:28:24Z"
+		},
+		{
+			"checksumSHA1": "jBwuQrehevwDWPaENwm3JNPeMsM=",
+			"path": "github.com/gopherjs/vecty/elem",
+			"revision": "6a0a25ee5a96ce029e684c7da6333aa1f34f8f96",
+			"revisionTime": "2019-12-27T22:28:24Z"
+		},
+		{
+			"checksumSHA1": "k+TGSR6VJ9/40cjrSX7UPSm+SHA=",
+			"path": "github.com/gopherjs/vecty/event",
+			"revision": "6a0a25ee5a96ce029e684c7da6333aa1f34f8f96",
+			"revisionTime": "2019-12-27T22:28:24Z"
+		},
+		{
+			"checksumSHA1": "Nn5jSnWEC4ul31jFqKdDqLPjTfI=",
+			"path": "github.com/iafan/syntaxhighlight",
+			"revision": "4e4300d099e1eddbcfa427591c93514bc23fd7bb",
+			"revisionTime": "2017-06-01T01:10:00Z"
+		},
+		{
+			"checksumSHA1": "hg5j4kdVPNACc4G8nsb1MX/U7KE=",
+			"path": "github.com/sourcegraph/annotate",
+			"revision": "f4cad6c6324d3f584e1743d8b3e0e017a5f3a636",
+			"revisionTime": "2016-01-23T01:39:49Z"
+		},
+		{
+			"checksumSHA1": "yJy8Z1H4oXdW/jxT2F+VzrEViXE=",
+			"path": "honnef.co/go/js/util",
+			"revision": "96b8dd9d16214b6cd9d8c8e84b3a375da4688108",
+			"revisionTime": "2015-02-16T22:39:35Z"
+		},
+		{
+			"checksumSHA1": "BivnYL12uO9W35pVwnGzhCe7utg=",
+			"path": "honnef.co/go/js/xhr",
+			"revision": "00e3346113aed89b501ead4e863c7c3d04fa0c5b",
+			"revisionTime": "2015-03-07T03:10:22Z"
+		}
+	],
+	"rootPath": "github.com/iafan/goplayspace/client"
+}

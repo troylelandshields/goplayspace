@@ -191,7 +191,7 @@ func (a *Application) doRunAsync() {
 			output[i] = a.events[i].Message
 		}
 		a.actions = draw.ParseString(strings.Join(output, "\n"))
-		a.isDrawingMode = len(a.actions) > 0
+		a.isDrawingMode = a.actions.Available()
 	}
 }
 
@@ -594,9 +594,9 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 			OnChange:        a.onEditorValueChange,
 			OnLineSelChange: a.onLineSelChange,
 			OnTopicChange:   topicHandler,
-			OnKeyDown:       a.onEditorKeyDown,
-			ChangeTimer:     &a.changeTimer,
-			UndoStack:       a.undoStack,
+			// OnKeyDown:       a.onEditorKeyDown,
+			ChangeTimer: &a.changeTimer,
+			UndoStack:   a.undoStack,
 		}
 	}
 	a.editor.WarningLines = a.warningLines
@@ -685,7 +685,7 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 				vecty.Markup(
 					vecty.Class("content-wrapper"),
 				),
-				a.editor,
+				vecty.Component(a.editor),
 				vecty.If(a.ShowSidebar, elem.Div(
 					vecty.Markup(
 						vecty.Class("help-wrapper"),
