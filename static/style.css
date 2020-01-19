@@ -597,6 +597,38 @@ canvas {
 	background-position: -100px 0px;
 }
 
+.gopher-original {}
+
+.gopher-pink {
+	-webkit-filter: hue-rotate(120deg) saturate(1.5);    
+	filter: hue-rotate(120deg) saturate(1.5); 
+}
+
+.gopher-periwinkle {
+	-webkit-filter: hue-rotate(60deg) saturate(7);    
+	filter: hue-rotate(60deg) saturate(7); 
+}
+
+.gopher-yellow {
+	-webkit-filter: hue-rotate(600deg) saturate(6);    
+	filter: hue-rotate(600deg) saturate(6); 
+}
+
+.gopher-red {
+	-webkit-filter: hue-rotate(180deg) saturate(8);    
+	filter: hue-rotate(180deg) saturate(8); 
+}
+
+.gopher-orange {
+	-webkit-filter: hue-rotate(190deg) saturate(3);    
+	filter: hue-rotate(190deg) saturate(3); 
+}
+
+.gopher-lime-green {
+	-webkit-filter: hue-rotate(260deg) saturate(4);    
+	filter: hue-rotate(260deg) saturate(4); 
+}
+
 .say-bubble {
 	position: absolute;
 	top: 0;

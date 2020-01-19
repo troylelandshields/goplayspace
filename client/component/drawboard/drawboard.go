@@ -117,7 +117,7 @@ func (b *DrawBoard) pollForActors() {
 				elemID := "gopher" + id
 				el := document.CreateElement("div")
 				el.Set("id", elemID)
-				el.Set("className", "gopher")
+				el.Set("className", "gopher gopher-color")
 				b.canvasWrapper.Call("appendChild", el)
 
 				spawnableW := int(b.w * 0.6)
