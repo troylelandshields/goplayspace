@@ -34,6 +34,53 @@ import (
 	"github.com/iafan/goplayspace/client/util"
 )
 
+const houseStr = `draw mode
+
+// draw the roof
+say Building the roof
+color red
+right 30
+forward 5
+right 120
+forward 5
+right 30
+
+// draw the walls
+say Building the walls
+color black
+forward 5
+right
+forward 5
+right
+forward 5
+right
+forward 5
+right
+
+// move to the door start
+color off
+forward 5
+right
+forward
+right
+
+// draw the door
+say Building the door
+color green
+forward 2
+left
+forward
+left
+forward 2
+left
+forward
+
+// move away from the house
+color off
+forward 3
+left
+say Done!`
+
 const maxUndoStackSize uint = 50
 
 const idDrawPage = "draw"
@@ -76,7 +123,7 @@ type Application struct {
 	events []*api.CompileEvent
 
 	// Draw mode properties
-	actions draw.ActionList
+	actions []draw.ActionList
 
 	// Editor properties
 	warningLines map[string]bool
@@ -190,8 +237,11 @@ func (a *Application) doRunAsync() {
 		for i := range a.events {
 			output[i] = a.events[i].Message
 		}
-		a.actions = draw.ParseString(strings.Join(output, "\n"))
-		a.isDrawingMode = a.actions.Available()
+		a.actions = []draw.ActionList{
+			draw.ParseString(strings.Join(output, "\n")),
+			draw.ParseString(houseStr),
+		}
+		a.isDrawingMode = len(a.actions) > 0
 	}
 }
 
@@ -737,9 +787,7 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 			ShowSidebar:      a.ShowSidebar,
 			OnChange:         a.onSettingsChange,
 		}),
-		vecty.If(a.isDrawingMode, &drawboard.DrawBoard{
-			Actions: a.actions,
-		}),
+		vecty.If(a.isDrawingMode, drawboard.New(a.actions)),
 		elem.Style(
 			vecty.Markup(
 				vecty.UnsafeHTML(a.getOverrideCSS()),

@@ -3,6 +3,7 @@ package drawboard
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -40,40 +41,59 @@ const (
 	centerStrokeStyle = "rgba(0, 0, 0, 0.16)"
 )
 
-// DrawBoard represents the drawing board with animation logic
-type DrawBoard struct {
-	vecty.Core
-	canvas        *canvas.Canvas
-	ctx           *canvas.CanvasRenderingContext2D
-	gopher        *js.Object
-	canvasWrapper *js.Object
-	initialized   bool
+type actor struct {
+	ctx    *canvas.CanvasRenderingContext2D
+	gopher *js.Object
 
-	Actions draw.ActionList `vecty:"prop"`
-
-	step int
-
-	startTime  time.Time
 	startX     float64
 	startY     float64
 	startAngle float64
 
-	targetTime  time.Time
 	targetX     float64
 	targetY     float64
 	targetAngle float64
 	targetDist  float64
 
-	accelerate bool
-	tabDown    bool
+	startTime  time.Time
+	targetTime time.Time
 
 	x, y  float64
 	angle float64
 	color string
 	width float64
 
+	Actions draw.ActionList `vecty:"prop"`
+
+	step int
+}
+
+// DrawBoard represents the drawing board with animation logic
+type DrawBoard struct {
+	vecty.Core
+	canvas        *canvas.Canvas
+	canvasWrapper *js.Object
+	initialized   bool
+	ctx           *canvas.CanvasRenderingContext2D
+	actors        []*actor
+
+	accelerate bool
+	tabDown    bool
+
 	w, h     float64
 	stepSize float64
+}
+
+func New(aa []draw.ActionList) *DrawBoard {
+	var actors []*actor
+	for _, list := range aa {
+		actors = append(actors, &actor{
+			Actions: list,
+		})
+	}
+
+	return &DrawBoard{
+		actors: actors,
+	}
 }
 
 func (b *DrawBoard) getDOMNodes() {
@@ -82,8 +102,12 @@ func (b *DrawBoard) getDOMNodes() {
 		if c != nil {
 			b.canvas = &canvas.Canvas{c}
 			b.ctx = b.canvas.GetContext2D()
+
+			for i := range b.actors {
+				b.actors[i].ctx = b.canvas.GetContext2D()
+				b.actors[i].gopher = document.QuerySelector("#gopher" + strconv.Itoa(i))
+			}
 		}
-		b.gopher = document.QuerySelector(".gopher")
 		b.canvasWrapper = document.QuerySelector(".canvas-wrapper")
 	}
 }
@@ -161,7 +185,7 @@ func (b *DrawBoard) addSpeechBubble(x, y float64, s string) {
 	})
 }
 
-func (b *DrawBoard) doSubStep(pos float64) {
+func (b *actor) doSubStep(db *DrawBoard, pos float64) {
 	oldX := b.x
 	oldY := b.y
 
@@ -171,8 +195,8 @@ func (b *DrawBoard) doSubStep(pos float64) {
 
 	//console.Log("x:", b.x, "y:", b.y, "angle:", b.angle)
 
-	cX := b.w / 2
-	cY := b.h / 2
+	cX := db.w / 2
+	cY := db.h / 2
 
 	if b.color != "" {
 		b.ctx.SetLineWidth(b.width)
@@ -204,21 +228,21 @@ func (b *DrawBoard) doSubStep(pos float64) {
 	b.gopher.Call("setAttribute", "style", style)
 }
 
-func (b *DrawBoard) doStep() {
+func (b *actor) doStep(db *DrawBoard) {
 	t := time.Now()
 
-	if b.targetTime.IsZero() || b.targetTime.Sub(t) <= 0 || b.accelerate {
-		b.doSubStep(1)
+	if b.targetTime.IsZero() || b.targetTime.Sub(t) <= 0 || db.accelerate {
+		b.doSubStep(db, 1)
 
 		// new step
 		b.step = b.step + 1
 
-		b.startTime = t
-		b.targetTime = t
-
 		b.startX = b.x
 		b.startY = b.y
 		b.startAngle = b.angle
+
+		b.startTime = t
+		b.targetTime = t
 
 		nextActions, ok := b.Actions.Next()
 		if !ok {
@@ -235,12 +259,12 @@ func (b *DrawBoard) doStep() {
 			b.targetTime = t.Add(time.Duration(float64(delay) * a.FVal))
 
 			rad := (-90 + b.angle) * 2 * math.Pi / 360
-			b.targetX = b.startX + math.Cos(rad)*b.stepSize*a.FVal
-			b.targetY = b.startY + math.Sin(rad)*b.stepSize*a.FVal
+			b.targetX = b.startX + math.Cos(rad)*db.stepSize*a.FVal
+			b.targetY = b.startY + math.Sin(rad)*db.stepSize*a.FVal
 
 			// stop accelerating only after the 'Step' event; accelerate through others
-			if b.tabDown {
-				b.accelerate = false
+			if db.tabDown {
+				db.accelerate = false
 			}
 
 		case draw.Left:
@@ -251,15 +275,15 @@ func (b *DrawBoard) doStep() {
 			b.targetAngle = b.startAngle + a.FVal // sign inverted to match clock-wise CSS rotation
 		case draw.Color:
 			b.color = a.SVal
-			util.Schedule(b.doStep)
+			util.Schedule(func() { b.doStep(db) })
 			return
 		case draw.Width:
 			b.width = a.FVal
-			util.Schedule(b.doStep)
+			util.Schedule(func() { b.doStep(db) })
 			return
 		case draw.Say:
-			b.addSpeechBubble(b.x, b.y, a.SVal)
-			util.Schedule(b.doStep)
+			db.addSpeechBubble(b.x, b.y, a.SVal)
+			util.Schedule(func() { b.doStep(db) })
 			return
 		}
 
@@ -272,20 +296,22 @@ func (b *DrawBoard) doStep() {
 	total := b.targetTime.Sub(b.startTime)  // total duration
 	passed := t.Sub(b.startTime)            // passed duration
 	rel := float64(passed) / float64(total) // passed [0..1]
-	b.doSubStep(rel)
+	b.doSubStep(db, rel)
 
-	window.RequestAnimationFrame(b.doStep)
+	window.RequestAnimationFrame(func() { b.doStep(db) })
 }
 
-func (b *DrawBoard) animate() {
-	b.getDOMNodes()
+func (b *actor) animate(db *DrawBoard) {
+	db.getDOMNodes()
 
 	// set defaults
 	b.width = 2
 
 	b.step = -1
 	//console.Log("Animation started")
-	time.AfterFunc(firstStepDelay, b.doStep)
+	time.AfterFunc(firstStepDelay, func() {
+		b.doStep(db)
+	})
 }
 
 func (b *DrawBoard) onRendered() {
@@ -301,7 +327,13 @@ func (b *DrawBoard) onRendered() {
 		b.onResize()
 
 		// start the animation
-		b.animate()
+		for _, actor := range b.actors {
+			actor.animate(b)
+		}
+
+		// t := time.Now()
+		// b.startTime = t
+		// b.targetTime = t.Add(stepDelay)
 	}
 }
 
@@ -343,7 +375,9 @@ func (b *DrawBoard) onResize() {
 	b.stepSize = min / (stepsInEachDirection*2 + 1) // "+1" to add 0.5 steps around
 	b.canvas.SetSize(b.w, b.h)
 	b.renderBoardLines()
-	b.gopher.Call("setAttribute", "style", "")
+	for _, a := range b.actors {
+		a.gopher.Call("setAttribute", "style", "")
+	}
 }
 
 // SkipRender implements the vecty.Component interface.
@@ -355,6 +389,36 @@ func (b *DrawBoard) SkipRender(prev vecty.Component) bool {
 func (b *DrawBoard) Render() vecty.ComponentOrHTML {
 	util.Schedule(b.onRendered)
 
+	elems := []vecty.MarkupOrChild{
+		vecty.Markup(
+			vecty.Class("canvas-wrapper"),
+		),
+		elem.Canvas(),
+	}
+
+	var gophers []vecty.MarkupOrChild
+	for i := range b.actors {
+		gophers = append(gophers, elem.Div(
+			vecty.Markup(
+				vecty.Property("id", "gopher"+strconv.Itoa(i)),
+				vecty.Class("gopher"),
+			),
+		))
+	}
+
+	elems = append(elems, gophers...)
+	elems = append(elems, elem.Div(
+		vecty.Markup(
+			vecty.Class("statusbar-wrapper"),
+		),
+		elem.Div(
+			vecty.Markup(
+				vecty.Class("statusbar"),
+				vecty.UnsafeHTML("<kbd>Tab</kbd> or hold <kbd>Shift</kbd> to accelerate, <kbd>Esc</kbd> to close"),
+			),
+		),
+	))
+
 	return elem.Div(
 		vecty.Markup(
 			vecty.Class("canvas-lightbox"),
@@ -362,27 +426,6 @@ func (b *DrawBoard) Render() vecty.ComponentOrHTML {
 			event.KeyDown(b.handleKeyDown),
 			event.KeyUp(b.handleKeyUp),
 		),
-		elem.Div(
-			vecty.Markup(
-				vecty.Class("canvas-wrapper"),
-			),
-			elem.Canvas(),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("gopher"),
-				),
-			),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("statusbar-wrapper"),
-				),
-				elem.Div(
-					vecty.Markup(
-						vecty.Class("statusbar"),
-						vecty.UnsafeHTML("<kbd>Tab</kbd> or hold <kbd>Shift</kbd> to accelerate, <kbd>Esc</kbd> to close"),
-					),
-				),
-			),
-		),
+		elem.Div(elems...),
 	)
 }
