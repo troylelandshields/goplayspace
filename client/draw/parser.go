@@ -1,6 +1,7 @@
 package draw
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -65,18 +66,32 @@ var _ Actor = &SimpleActor{}
 type SimpleActor struct {
 	id           string
 	currentIndex int
+	paused       int
 	actions      []*Action
 }
 
 type SimpleActorList struct {
-	actors []Actor
+	calledTimes int
+	actors      []Actor
 }
 
 func (s *SimpleActorList) Actors() []Actor {
-	return s.actors
+	s.calledTimes = s.calledTimes + 1
+	if s.calledTimes > 4 {
+		fmt.Println("Returning both actors now")
+		return s.actors
+	}
+
+	return s.actors[0:1]
 }
 
 func (s *SimpleActor) Next() (*Action, bool) {
+	if s.currentIndex == 8 && s.paused < 20 {
+		fmt.Println("PAUSING")
+		s.paused = s.paused + 1
+		return nil, false
+	}
+
 	if len(s.actions) <= s.currentIndex {
 		return nil, false
 	}
