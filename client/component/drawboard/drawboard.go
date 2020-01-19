@@ -41,6 +41,23 @@ const (
 	centerStrokeStyle = "rgba(0, 0, 0, 0.16)"
 )
 
+var (
+	colors = []string{
+		"original",
+		"periwinkle",
+		"yellow",
+		"red",
+		"orange",
+		"lime-green",
+		"forest-green",
+		"purple",
+		"gray",
+		"brown",
+		"fuschia",
+		"hot-pink",
+	}
+)
+
 type actor struct {
 	ctx    *canvas.CanvasRenderingContext2D
 	gopher *js.Object
@@ -114,10 +131,12 @@ func (b *DrawBoard) pollForActors() {
 					continue
 				}
 
+				color := colors[rand.Intn(len(colors))]
+
 				elemID := "gopher" + id
 				el := document.CreateElement("div")
 				el.Set("id", elemID)
-				el.Set("className", "gopher gopher-color")
+				el.Set("className", "gopher gopher-"+color)
 				b.canvasWrapper.Call("appendChild", el)
 
 				spawnableW := int(b.w * 0.6)

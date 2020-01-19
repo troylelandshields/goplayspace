@@ -81,6 +81,32 @@ forward 3
 left
 say Done!`
 
+const squaresStr = `draw mode
+		
+say Let's start...
+right 18
+color red
+
+forward 7
+say One...
+right 144
+
+forward 7
+say Two...
+right 144
+
+forward 7
+say Three...
+right 144
+
+forward 7
+say Four...
+right 144
+
+forward 7
+say We've got a star!
+right 144`
+
 const maxUndoStackSize uint = 50
 
 const idDrawPage = "draw"
@@ -237,7 +263,7 @@ func (a *Application) doRunAsync() {
 		for i := range a.events {
 			output[i] = a.events[i].Message
 		}
-		a.actions = draw.New([]string{strings.Join(output, "\n"), houseStr})
+		a.actions = draw.New([]string{strings.Join(output, "\n"), houseStr, squaresStr})
 		a.isDrawingMode = a.actions != nil
 	}
 }

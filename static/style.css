@@ -591,40 +591,81 @@ canvas {
 	height: 50px;
 	margin-left: -25px;
 	margin-top: -25px;
-	background-image: url(gopher_walk.svg);
 	background-repeat: no-repeat;
 	background-size: 250px; /* 5:1 ratio */
 	background-position: -100px 0px;
 }
 
-.gopher-original {}
+.gopher-original {
+	background-image: url(gopher_walk.svg);
+}
+
+.gopher-forest-green {
+	background-image: url(gopher_walk_darker.svg);
+}
+
+.gopher-purple {
+	background-image: url(gopher_walk_darker.svg);
+	-webkit-filter: hue-rotate(160deg) saturate(1.5);    
+	filter: hue-rotate(160deg) saturate(1.5); 
+}
+
+.gopher-gray {
+	background-image: url(gopher_walk_darker.svg);
+	-webkit-filter: hue-rotate(0deg) saturate(0);    
+	filter: hue-rotate(0deg) saturate(0); 
+}
+
+.gopher-brown {
+	background-image: url(gopher_walk_darker.svg);
+	-webkit-filter: hue-rotate(290deg) saturate(1.5);    
+	filter: hue-rotate(290deg) saturate(1.5); 
+}
+
+.gopher-fuschia {
+	background-image: url(gopher_walk_darker.svg);
+	-webkit-filter: hue-rotate(220deg) saturate(1.5);    
+	filter: hue-rotate(220deg) saturate(1.5); 
+}
+
+.gopher-hot-pink {
+	background-image: url(gopher_walk_darker.svg);
+	-webkit-filter: ue-rotate(200deg) saturate(100);    
+	filter: ue-rotate(200deg) saturate(100); 
+}
 
 .gopher-pink {
+	background-image: url(gopher_walk.svg);
 	-webkit-filter: hue-rotate(120deg) saturate(1.5);    
 	filter: hue-rotate(120deg) saturate(1.5); 
 }
 
 .gopher-periwinkle {
+	background-image: url(gopher_walk.svg);
 	-webkit-filter: hue-rotate(60deg) saturate(7);    
 	filter: hue-rotate(60deg) saturate(7); 
 }
 
 .gopher-yellow {
+	background-image: url(gopher_walk.svg);
 	-webkit-filter: hue-rotate(600deg) saturate(6);    
 	filter: hue-rotate(600deg) saturate(6); 
 }
 
 .gopher-red {
+	background-image: url(gopher_walk.svg);
 	-webkit-filter: hue-rotate(180deg) saturate(8);    
 	filter: hue-rotate(180deg) saturate(8); 
 }
 
 .gopher-orange {
+	background-image: url(gopher_walk.svg);
 	-webkit-filter: hue-rotate(190deg) saturate(3);    
 	filter: hue-rotate(190deg) saturate(3); 
 }
 
 .gopher-lime-green {
+	background-image: url(gopher_walk.svg);
 	-webkit-filter: hue-rotate(260deg) saturate(4);    
 	filter: hue-rotate(260deg) saturate(4); 
 }
