@@ -77,7 +77,7 @@ type SimpleActorList struct {
 
 func (s *SimpleActorList) Actors() []Actor {
 	s.calledTimes = s.calledTimes + 1
-	if s.calledTimes > 4 {
+	if s.calledTimes > 8 {
 		fmt.Println("Returning both actors now")
 		return s.actors
 	}
@@ -86,7 +86,7 @@ func (s *SimpleActorList) Actors() []Actor {
 }
 
 func (s *SimpleActor) Next() (*Action, bool) {
-	if s.currentIndex == 8 && s.paused < 20 {
+	if s.currentIndex == 8 && s.paused < 10 {
 		fmt.Println("PAUSING")
 		s.paused = s.paused + 1
 		return nil, false

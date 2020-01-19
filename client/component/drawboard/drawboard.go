@@ -3,6 +3,7 @@ package drawboard
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"time"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -56,10 +57,12 @@ type actor struct {
 	startTime  time.Time
 	targetTime time.Time
 
-	x, y  float64
-	angle float64
-	color string
-	width float64
+	x, y     float64
+	angle    float64
+	color    string
+	width    float64
+	initialX float64
+	initialY float64
 
 	Actions draw.Actor `vecty:"prop"`
 
@@ -98,6 +101,8 @@ func New(aa draw.ActorsList) *DrawBoard {
 }
 
 func (b *DrawBoard) pollForActors() {
+	rand.Seed(time.Now().Unix())
+
 	for {
 		select {
 		case <-time.After(time.Second):
@@ -106,21 +111,8 @@ func (b *DrawBoard) pollForActors() {
 			for _, newActor := range maybeNewActors {
 				id := newActor.ID()
 				if _, ok := b.connectedActors[id]; ok {
-
-					// na.gopher.Call("setAttribute", "style", "")
 					continue
 				}
-
-				// TODO: add the gopher to the DOM here too
-				// var gophers []vecty.MarkupOrChild
-				// for id := range b.connectedActors {
-				// 	gophers = append(gophers, elem.Div(
-				// 		vecty.Markup(
-				// 			vecty.Property("id", "gopher"+id),
-				// 			vecty.Class("gopher"),
-				// 		),
-				// 	))
-				// }
 
 				elemID := "gopher" + id
 				el := document.CreateElement("div")
@@ -128,13 +120,29 @@ func (b *DrawBoard) pollForActors() {
 				el.Set("className", "gopher")
 				b.canvasWrapper.Call("appendChild", el)
 
+				spawnableW := int(b.w * 0.6)
+				spawnableH := int(b.h * 0.6)
+
+				randomX := rand.Intn(spawnableW) - (spawnableW / 2)
+				randomY := rand.Intn(spawnableH) - (spawnableH / 2)
+
+				fmt.Println("rand", randomX, randomY)
+
 				na := &actor{
-					Actions: newActor,
-					ctx:     b.canvas.GetContext2D(),
-					gopher:  document.QuerySelector("#gopher" + id),
+					Actions:  newActor,
+					ctx:      b.canvas.GetContext2D(),
+					gopher:   document.QuerySelector("#gopher" + id),
+					initialX: float64(randomX),
+					initialY: float64(randomY),
 				}
 
-				na.gopher.Call("setAttribute", "style", "")
+				style := fmt.Sprintf(
+					"transform: translateX(%.2fpx) translateY(%.2fpx);",
+					na.initialX, na.initialY,
+				)
+
+				na.gopher.Call("setAttribute", "style", style)
+
 				go na.animate(b)
 
 				b.connectedActors[id] = na
@@ -150,9 +158,7 @@ func (b *DrawBoard) getDOMNodes() {
 		if c != nil {
 			b.canvas = &canvas.Canvas{c}
 			b.ctx = b.canvas.GetContext2D()
-			fmt.Println("1")
 			go b.pollForActors()
-			fmt.Println("2")
 		}
 		b.canvasWrapper = document.QuerySelector(".canvas-wrapper")
 	}
@@ -232,6 +238,11 @@ func (b *DrawBoard) addSpeechBubble(x, y float64, s string) {
 }
 
 func (b *actor) doSubStep(db *DrawBoard, pos float64) {
+	// b.startX = b.startX + 5
+	// b.startY = b.startY + 5
+	// b.targetX = b.targetX + 5
+	// b.targetY = b.targetY + 5
+
 	oldX := b.x
 	oldY := b.y
 
@@ -239,10 +250,12 @@ func (b *actor) doSubStep(db *DrawBoard, pos float64) {
 	b.y = (b.targetY-b.startY)*pos + b.startY
 	b.angle = (b.targetAngle-b.startAngle)*pos + b.startAngle
 
+	// b.x = b.x + b.initialX
+	// b.y = b.y + b.initialY
 	//console.Log("x:", b.x, "y:", b.y, "angle:", b.angle)
 
-	cX := db.w / 2
-	cY := db.h / 2
+	cX := (db.w / 2) + b.initialX
+	cY := (db.h / 2) + b.initialY
 
 	if b.color != "" {
 		b.ctx.SetLineWidth(b.width)
@@ -267,7 +280,7 @@ func (b *actor) doSubStep(db *DrawBoard, pos float64) {
 	style := fmt.Sprintf(
 		"transform: translateX(%.2fpx) translateY(%.2fpx) rotate(%.2fdeg); "+
 			"background-position-x: %dpx;",
-		b.x, b.y, b.angle,
+		b.x+b.initialX, b.y+b.initialY, b.angle,
 		bgPos,
 	)
 
@@ -325,7 +338,7 @@ func (b *actor) doStep(db *DrawBoard) {
 			util.Schedule(func() { b.doStep(db) })
 			return
 		case draw.Say:
-			db.addSpeechBubble(b.x, b.y, a.SVal)
+			db.addSpeechBubble(b.x+b.initialX, b.y+b.initialY, a.SVal)
 			util.Schedule(func() { b.doStep(db) })
 			return
 		}
@@ -349,7 +362,7 @@ func (b *actor) animate(db *DrawBoard) {
 		select {
 		case <-time.After(time.Second):
 			fmt.Println("Animating")
-			db.getDOMNodes()
+			// db.getDOMNodes()
 
 			// set defaults
 			b.width = 2
