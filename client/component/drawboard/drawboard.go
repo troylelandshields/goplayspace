@@ -3,7 +3,6 @@ package drawboard
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -62,7 +61,7 @@ type actor struct {
 	color string
 	width float64
 
-	Actions draw.ActionList `vecty:"prop"`
+	Actions draw.Actor `vecty:"prop"`
 
 	step int
 }
@@ -70,11 +69,12 @@ type actor struct {
 // DrawBoard represents the drawing board with animation logic
 type DrawBoard struct {
 	vecty.Core
-	canvas        *canvas.Canvas
-	canvasWrapper *js.Object
-	initialized   bool
-	ctx           *canvas.CanvasRenderingContext2D
-	actors        []*actor
+	canvas          *canvas.Canvas
+	canvasWrapper   *js.Object
+	initialized     bool
+	ctx             *canvas.CanvasRenderingContext2D
+	connectedActors map[string]*actor
+	actors          draw.ActorsList
 
 	accelerate bool
 	tabDown    bool
@@ -83,17 +83,65 @@ type DrawBoard struct {
 	stepSize float64
 }
 
-func New(aa []draw.ActionList) *DrawBoard {
-	var actors []*actor
-	for _, list := range aa {
-		actors = append(actors, &actor{
-			Actions: list,
-		})
-	}
+func New(aa draw.ActorsList) *DrawBoard {
+	// var actors []*actor
+	// for _, list := range aa {
+	// 	actors = append(actors, &actor{
+	// 		Actions: list,
+	// 	})
+	// }
 
 	return &DrawBoard{
-		actors: actors,
+		connectedActors: make(map[string]*actor),
+		actors:          aa,
 	}
+}
+
+func (b *DrawBoard) pollForActors() {
+	for {
+		select {
+		case <-time.After(time.Second):
+			fmt.Println("Checking for more actors")
+			maybeNewActors := b.actors.Actors()
+			for _, newActor := range maybeNewActors {
+				id := newActor.ID()
+				if _, ok := b.connectedActors[id]; ok {
+
+					// na.gopher.Call("setAttribute", "style", "")
+					continue
+				}
+
+				// TODO: add the gopher to the DOM here too
+				// var gophers []vecty.MarkupOrChild
+				// for id := range b.connectedActors {
+				// 	gophers = append(gophers, elem.Div(
+				// 		vecty.Markup(
+				// 			vecty.Property("id", "gopher"+id),
+				// 			vecty.Class("gopher"),
+				// 		),
+				// 	))
+				// }
+
+				elemID := "gopher" + id
+				el := document.CreateElement("div")
+				el.Set("id", elemID)
+				el.Set("className", "gopher")
+				b.canvasWrapper.Call("appendChild", el)
+
+				na := &actor{
+					Actions: newActor,
+					ctx:     b.canvas.GetContext2D(),
+					gopher:  document.QuerySelector("#gopher" + id),
+				}
+
+				na.gopher.Call("setAttribute", "style", "")
+				go na.animate(b)
+
+				b.connectedActors[id] = na
+			}
+		}
+	}
+
 }
 
 func (b *DrawBoard) getDOMNodes() {
@@ -102,11 +150,9 @@ func (b *DrawBoard) getDOMNodes() {
 		if c != nil {
 			b.canvas = &canvas.Canvas{c}
 			b.ctx = b.canvas.GetContext2D()
-
-			for i := range b.actors {
-				b.actors[i].ctx = b.canvas.GetContext2D()
-				b.actors[i].gopher = document.QuerySelector("#gopher" + strconv.Itoa(i))
-			}
+			fmt.Println("1")
+			go b.pollForActors()
+			fmt.Println("2")
 		}
 		b.canvasWrapper = document.QuerySelector(".canvas-wrapper")
 	}
@@ -244,13 +290,10 @@ func (b *actor) doStep(db *DrawBoard) {
 		b.startTime = t
 		b.targetTime = t
 
-		nextActions, ok := b.Actions.Next()
+		a, ok := b.Actions.Next()
 		if !ok {
 			return
 		}
-
-		// TODO: allow multiple actors
-		a := nextActions[0]
 
 		delay := stepDelay
 
@@ -302,16 +345,22 @@ func (b *actor) doStep(db *DrawBoard) {
 }
 
 func (b *actor) animate(db *DrawBoard) {
-	db.getDOMNodes()
+	for {
+		select {
+		case <-time.After(time.Second):
+			fmt.Println("Animating")
+			db.getDOMNodes()
 
-	// set defaults
-	b.width = 2
+			// set defaults
+			b.width = 2
 
-	b.step = -1
-	//console.Log("Animation started")
-	time.AfterFunc(firstStepDelay, func() {
-		b.doStep(db)
-	})
+			b.step = -1
+			//console.Log("Animation started")
+			time.AfterFunc(firstStepDelay, func() {
+				b.doStep(db)
+			})
+		}
+	}
 }
 
 func (b *DrawBoard) onRendered() {
@@ -327,9 +376,10 @@ func (b *DrawBoard) onRendered() {
 		b.onResize()
 
 		// start the animation
-		for _, actor := range b.actors {
-			actor.animate(b)
-		}
+		// for k, actor := range b.connectedActors {
+		// 	fmt.Println("Animating", k)
+		// 	actor.animate(b)
+		// }
 
 		// t := time.Now()
 		// b.startTime = t
@@ -375,9 +425,6 @@ func (b *DrawBoard) onResize() {
 	b.stepSize = min / (stepsInEachDirection*2 + 1) // "+1" to add 0.5 steps around
 	b.canvas.SetSize(b.w, b.h)
 	b.renderBoardLines()
-	for _, a := range b.actors {
-		a.gopher.Call("setAttribute", "style", "")
-	}
 }
 
 // SkipRender implements the vecty.Component interface.
@@ -396,17 +443,17 @@ func (b *DrawBoard) Render() vecty.ComponentOrHTML {
 		elem.Canvas(),
 	}
 
-	var gophers []vecty.MarkupOrChild
-	for i := range b.actors {
-		gophers = append(gophers, elem.Div(
-			vecty.Markup(
-				vecty.Property("id", "gopher"+strconv.Itoa(i)),
-				vecty.Class("gopher"),
-			),
-		))
-	}
+	// var gophers []vecty.MarkupOrChild
+	// for id := range b.connectedActors {
+	// 	gophers = append(gophers, elem.Div(
+	// 		vecty.Markup(
+	// 			vecty.Property("id", "gopher"+id),
+	// 			vecty.Class("gopher"),
+	// 		),
+	// 	))
+	// }
 
-	elems = append(elems, gophers...)
+	// elems = append(elems, gophers...)
 	elems = append(elems, elem.Div(
 		vecty.Markup(
 			vecty.Class("statusbar-wrapper"),

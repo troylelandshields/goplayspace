@@ -36,33 +36,63 @@ type Action struct {
 	SVal string
 }
 
-type SimpleActionList struct {
+type Actor interface {
+	ID() string
+	Next() (*Action, bool)
+}
+
+type ActorsList interface {
+	Actors() []Actor
+}
+
+func New(instructions []string) ActorsList {
+	var actors []Actor
+
+	for i, s := range instructions {
+		actor := parseString(strconv.Itoa(i), s)
+		converted := Actor(actor)
+
+		actors = append(actors, converted)
+	}
+
+	return &SimpleActorList{
+		actors: actors,
+	}
+}
+
+var _ Actor = &SimpleActor{}
+
+type SimpleActor struct {
+	id           string
 	currentIndex int
 	actions      []*Action
 }
 
-func (s *SimpleActionList) Next() ([]*Action, bool) {
+type SimpleActorList struct {
+	actors []Actor
+}
+
+func (s *SimpleActorList) Actors() []Actor {
+	return s.actors
+}
+
+func (s *SimpleActor) Next() (*Action, bool) {
 	if len(s.actions) <= s.currentIndex {
 		return nil, false
 	}
 
-	nextActions := s.actions[s.currentIndex : s.currentIndex+1]
+	nextActions := s.actions[s.currentIndex]
 
 	s.currentIndex = s.currentIndex + 1
 
 	return nextActions, true
 }
 
-func (s *SimpleActionList) Available() bool {
-	return len(s.actions) > s.currentIndex
+func (s *SimpleActor) ID() string {
+	return s.id
 }
 
-type ActionList interface {
-	Next() ([]*Action, bool)
-	Available() bool
-}
-
-func ParseLines(lines []string) *SimpleActionList {
+func parseLines(id string, lines []string) *SimpleActor {
 	var a []*Action
 
 	isDrawMode := false
@@ -131,11 +161,12 @@ func ParseLines(lines []string) *SimpleActionList {
 
 	}
 
-	return &SimpleActionList{
+	return &SimpleActor{
+		id:      id,
 		actions: a,
 	}
 }
 
-func ParseString(s string) ActionList {
-	return ParseLines(strings.Split(s, "\n"))
+func parseString(id string, s string) *SimpleActor {
+	return parseLines(id, strings.Split(s, "\n"))
 }

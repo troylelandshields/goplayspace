@@ -123,7 +123,7 @@ type Application struct {
 	events []*api.CompileEvent
 
 	// Draw mode properties
-	actions []draw.ActionList
+	actions draw.ActorsList
 
 	// Editor properties
 	warningLines map[string]bool
@@ -237,11 +237,8 @@ func (a *Application) doRunAsync() {
 		for i := range a.events {
 			output[i] = a.events[i].Message
 		}
-		a.actions = []draw.ActionList{
-			draw.ParseString(strings.Join(output, "\n")),
-			draw.ParseString(houseStr),
-		}
-		a.isDrawingMode = len(a.actions) > 0
+		a.actions = draw.New([]string{strings.Join(output, "\n"), houseStr})
+		a.isDrawingMode = a.actions != nil
 	}
 }
 
