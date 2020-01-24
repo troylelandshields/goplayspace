@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -14,21 +15,16 @@ import (
 
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
-	"github.com/gopherjs/vecty/event"
 	"github.com/iafan/syntaxhighlight"
 
 	"github.com/iafan/goplayspace/client/api"
 	"github.com/iafan/goplayspace/client/component/drawboard"
 	"github.com/iafan/goplayspace/client/component/editor"
 	"github.com/iafan/goplayspace/client/component/editor/undo"
-	"github.com/iafan/goplayspace/client/component/help"
 	"github.com/iafan/goplayspace/client/component/log"
-	"github.com/iafan/goplayspace/client/component/settings"
-	"github.com/iafan/goplayspace/client/component/splitter"
 	"github.com/iafan/goplayspace/client/draw"
 	"github.com/iafan/goplayspace/client/hash"
 	"github.com/iafan/goplayspace/client/js/console"
-	"github.com/iafan/goplayspace/client/js/localstorage"
 	"github.com/iafan/goplayspace/client/js/window"
 	"github.com/iafan/goplayspace/client/ranges"
 	"github.com/iafan/goplayspace/client/util"
@@ -209,10 +205,6 @@ func (a *Application) onLineSelChange(state string) {
 	}
 	a.Hash.SetRanges(state)
 	a.wantRerender("onLineSelChange")
-}
-
-func (a *Application) runButtonClick(e *vecty.Event) {
-	a.doRun()
 }
 
 func (a *Application) doRun() {
@@ -526,74 +518,6 @@ func (a *Application) getOverrideCSS() (out string) {
 	return out
 }
 
-func (a *Application) updateTheme(val string) {
-	a.Theme = val
-	localstorage.Set("theme", val)
-	a.wantRerender("updateTheme")
-}
-
-func (a *Application) updateTabWidth(val int) {
-	a.TabWidth = val
-	localstorage.Set("tab-width", val)
-	a.wantRerender("updateTabWidth")
-}
-
-func (a *Application) updateFontWeight(val string) {
-	a.FontWeight = val
-	localstorage.Set("font-weight", val)
-	a.wantRerender("updateFontWeight")
-}
-
-func (a *Application) updateUseWebfont(val bool) {
-	a.UseWebfont = val
-	localstorage.Set("use-webfont", val)
-	a.wantRerender("updateUseWebfont")
-}
-
-func (a *Application) updateHighlighting(on bool) {
-	a.HighlightingMode = on
-	localstorage.Set("highlighting", on)
-	a.editor.Highlight(on)
-	a.wantRerender("updateHighlighting")
-}
-
-func (a *Application) updateShowSidebar(val bool) {
-	a.ShowSidebar = val
-	localstorage.Set("show-sidebar", val)
-	a.wantRerender("updateShowSidebar")
-}
-
-func (a *Application) onSettingsChange(d *settings.Dialog) {
-	if d.Theme != a.Theme {
-		a.updateTheme(d.Theme)
-	}
-
-	if d.TabWidth != a.TabWidth {
-		a.updateTabWidth(d.TabWidth)
-	}
-
-	if d.FontWeight != a.FontWeight {
-		a.updateFontWeight(d.FontWeight)
-	}
-
-	if d.UseWebfont != a.UseWebfont {
-		a.updateUseWebfont(d.UseWebfont)
-	}
-
-	if d.HighlightingMode != a.HighlightingMode {
-		a.updateHighlighting(d.HighlightingMode)
-	}
-
-	if d.ShowSidebar != a.ShowSidebar {
-		a.updateShowSidebar(d.ShowSidebar)
-	}
-}
-
-func (a *Application) formatShortcutPressed(e interface{}) {
-	a.err = "formatShortcutPressed()"
-	a.wantRerender("formatShortcutPressed")
-}
-
 // Mount implements the vecty.Mounter interface.
 func (a *Application) Mount() {
 	switch a.Hash.ID {
@@ -617,28 +541,12 @@ func (a *Application) onResize() {
 	a.editor.ResizeTextarea()
 }
 
-func (a *Application) settingsButtonClick(e *vecty.Event) {
-	a.showSettings = !a.showSettings
-	a.wantRerender("settingsButtonClick")
-}
-
-func (a *Application) handleKeyDown(e *vecty.Event) {
-	switch e.Get("key").String() {
-	case "Escape":
-		if a.isDrawingMode {
-			a.isDrawingMode = false
-			a.wantRerender("isDrawingMode switched off")
-			util.Schedule(a.editor.Focus)
-		}
-	default:
-		//console.Log(e.Get("key").String())
-	}
-}
-
 // Render renders the application
 func (a *Application) Render() vecty.ComponentOrHTML {
+	defer a.doRun()
 	//console.Time("app:render")
 	//defer console.TimeEnd("app:render")
+	fmt.Println("Rendering app")
 
 	if a.Hash == nil {
 		a.Hash = hash.New(a.onHashChange)
@@ -688,7 +596,6 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 
 	return elem.Body(
 		vecty.Markup(
-			event.KeyDown(a.handleKeyDown),
 			vecty.Class(a.Theme),
 			vecty.Class(tabWidthClass),
 			vecty.Class(a.getGlobalState()),
@@ -701,116 +608,15 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 			vecty.Markup(
 				vecty.Class("header"),
 			),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("logo"),
-				),
-			),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("menu"),
-				),
-				elem.Span(
-					vecty.Markup(
-						vecty.Class("title"),
-						vecty.UnsafeHTML("The Go<br/>Play Space"),
-					),
-				),
-				elem.Button(
-					vecty.Markup(
-						vecty.Property("disabled", a.err != "" || a.isCompiling),
-						vecty.UnsafeHTML("Run <cmd>"+a.modifierKey+"+↵</cmd>"),
-						event.Click(a.runButtonClick),
-					),
-				),
-				elem.Button(
-					vecty.Markup(
-						vecty.Property("disabled", a.err != ""),
-						vecty.UnsafeHTML("Format <cmd>"+a.modifierKey+"+S</cmd>"),
-						event.Click(a.formatButtonClick),
-					),
-				),
-				elem.Button(
-					vecty.Markup(
-						vecty.Property("disabled", a.isSharing || a.Hash.ID != ""),
-						vecty.UnsafeHTML("Share"),
-						event.Click(a.shareButtonClick),
-					),
-				),
-			),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("settings"),
-				),
-				elem.Button(
-					vecty.Markup(
-						vecty.UnsafeHTML("Settings"),
-						event.Click(a.settingsButtonClick),
-					),
-				),
-			),
 		),
 		elem.Div(
 			vecty.Markup(
 				vecty.Class("body-wrapper"),
 			),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("content-wrapper"),
-				),
-				vecty.Component(a.editor),
-				vecty.If(a.ShowSidebar, elem.Div(
-					vecty.Markup(
-						vecty.Class("help-wrapper"),
-					),
-					vecty.If(a.Topic == "" && !a.showDrawHelp, elem.Div(
-						vecty.Markup(
-							vecty.Class("help"),
-							vecty.UnsafeHTML(helpHTML),
-						),
-					)),
-					vecty.If(a.Topic == "" && a.showDrawHelp, elem.Div(
-						vecty.Markup(
-							vecty.Class("help"),
-							vecty.UnsafeHTML(drawHelpHTML),
-						),
-					)),
-					vecty.If(a.Topic != "", &help.Browser{
-						Imports: a.Imports,
-						Topic:   a.Topic,
-					}),
-					&splitter.Splitter{
-						Selector:         ".help-wrapper",
-						OppositeSelector: ".scroller",
-						Type:             splitter.RightPane,
-						MinSizePercent:   2,
-						OnChange:         a.onResize,
-					},
-				)),
-			),
-			elem.Div(
-				vecty.Markup(
-					vecty.Class("log-wrapper"),
-				),
-				a.log,
-				&splitter.Splitter{
-					Selector:         ".log-wrapper",
-					OppositeSelector: ".content-wrapper",
-					Type:             splitter.BottomPane,
-					MinSizePercent:   2,
-				},
-			),
 		),
-		vecty.If(a.showSettings, &settings.Dialog{
-			Theme:            a.Theme,
-			TabWidth:         a.TabWidth,
-			FontWeight:       a.FontWeight,
-			UseWebfont:       a.UseWebfont,
-			HighlightingMode: a.HighlightingMode,
-			ShowSidebar:      a.ShowSidebar,
-			OnChange:         a.onSettingsChange,
-		}),
+		// elem.Div(drawboard.New(a.actions)),
 		vecty.If(a.isDrawingMode, drawboard.New(a.actions)),
+		// drawboard.New(a.actions),
 		elem.Style(
 			vecty.Markup(
 				vecty.UnsafeHTML(a.getOverrideCSS()),

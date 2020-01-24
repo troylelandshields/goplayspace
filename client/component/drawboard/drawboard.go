@@ -10,7 +10,6 @@ import (
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
-
 	"github.com/iafan/goplayspace/client/draw"
 	"github.com/iafan/goplayspace/client/js/canvas"
 	"github.com/iafan/goplayspace/client/js/document"
@@ -123,6 +122,10 @@ func (b *DrawBoard) pollForActors() {
 	for {
 		select {
 		case <-time.After(time.Second):
+			if b.actors == nil {
+				continue
+			}
+
 			fmt.Println("Checking for more actors")
 			maybeNewActors := b.actors.Actors()
 			for _, newActor := range maybeNewActors {
