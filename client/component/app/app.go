@@ -11,12 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"honnef.co/go/js/xhr"
-
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
-	"github.com/iafan/syntaxhighlight"
-
 	"github.com/iafan/goplayspace/client/api"
 	"github.com/iafan/goplayspace/client/component/drawboard"
 	"github.com/iafan/goplayspace/client/component/editor"
@@ -28,6 +24,8 @@ import (
 	"github.com/iafan/goplayspace/client/js/window"
 	"github.com/iafan/goplayspace/client/ranges"
 	"github.com/iafan/goplayspace/client/util"
+	"github.com/iafan/syntaxhighlight"
+	"honnef.co/go/js/xhr"
 )
 
 const houseStr = `draw mode
@@ -168,44 +166,10 @@ func (a *Application) wantRerender(reason string) {
 	util.Schedule(a.rerenderIfNeeded)
 }
 
-func (a *Application) onEditorTopicChange(topic string) {
-	a.Topic = topic
-	a.wantRerender("onEditorTopicChange")
-}
-
-func (a *Application) onEditorKeyDown(e *vecty.Event) {
-	ctrlDown := e.Get("ctrlKey").Bool()
-	metaDown := e.Get("metaKey").Bool()
-
-	switch e.Get("keyCode").Int() {
-	case 83: // S
-		if ctrlDown || metaDown { // Ctrl+S or Cmd+S
-			e.Call("preventDefault")
-			a.doFormat()
-		}
-	case 13: // Enter
-		if ctrlDown || metaDown { // Ctrl+Enter or Cmd+Enter
-			e.Call("preventDefault")
-			if a.err != "" || a.isCompiling {
-				return
-			}
-			a.doRun()
-		}
-	}
-}
-
 var compileErrorLineExtractorR = regexp.MustCompile(`\/main\.go:(\d+):\s`)
 var fmtErrorLineExtractorR = regexp.MustCompile(`(?m)^(\d+):(\d+):\s`)
 
 var domMonitorInterval = 5 * time.Millisecond
-
-func (a *Application) onLineSelChange(state string) {
-	if a.isLoading || a.Hash.Ranges == state {
-		return
-	}
-	a.Hash.SetRanges(state)
-	a.wantRerender("onLineSelChange")
-}
 
 func (a *Application) doRun() {
 	a.isCompiling = true
@@ -564,18 +528,11 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 		}
 	}
 
-	topicHandler := a.onEditorTopicChange
-	if !a.ShowSidebar {
-		topicHandler = nil
-	}
-
 	if a.editor == nil {
 		a.editor = &editor.Editor{
-			Highlighter:     a.highlight,
-			OnChange:        a.onEditorValueChange,
-			OnLineSelChange: a.onLineSelChange,
-			OnTopicChange:   topicHandler,
-			// OnKeyDown:       a.onEditorKeyDown,
+			Highlighter: a.highlight,
+			OnChange:    a.onEditorValueChange,
+			// OnTopicChange: topicHandler,
 			ChangeTimer: &a.changeTimer,
 			UndoStack:   a.undoStack,
 		}

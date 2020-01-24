@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gopherjs/gopherjs/js"
 	"github.com/gopherjs/vecty"
 	"github.com/gopherjs/vecty/elem"
 	"github.com/gopherjs/vecty/event"
@@ -47,11 +46,8 @@ type Editor struct {
 	UndoStack        *undo.Stack     `vecty:"prop"`
 	ChangeTimer      **time.Timer    // note this is a pointer to a pointer
 
-	Highlighter     func(s string) string `vecty:"prop"`
-	OnTopicChange   func(topic string)
-	OnChange        func(value string)
-	OnLineSelChange func(value string)
-	OnKeyDown       func(e *vecty.Event)
+	Highlighter func(s string) string `vecty:"prop"`
+	OnChange    func(value string)
 }
 
 // Focus sets focus to the control
@@ -78,46 +74,6 @@ func (ed *Editor) SetSelection(start, end int) {
 	}
 	ed.ta.SetSelectionStart(start)
 	ed.ta.SetSelectionEnd(end)
-}
-
-func (ed *Editor) updateSelectionInfo(e *vecty.Event) {
-	if ed.ta == nil || ed.OnTopicChange == nil {
-		return
-	}
-	ss := ed.ta.GetSelectionStart()
-	se := ed.ta.GetSelectionEnd()
-	text := ed.ta.GetValue()
-	if se > len(text) {
-		se = len(text)
-	}
-	sel := text[ss:se]
-
-	if sel == "" {
-		return
-	}
-
-	// FIXME: sel must be an alphanumeric sequence,
-	// otherwise selection expansion should not be performed
-
-	// test if there is a '.' symbol before the selection
-	if ss > 0 && text[ss-1] == '.' {
-		// go back until we get to non-alpha character to get the full package name
-		start := ss - 2
-		for i := start; i >= 0; i-- {
-			ch := text[i : i+1]
-			if strings.ToLower(ch) == strings.ToUpper(ch) {
-				// we're at non-alpha char
-				if i < start {
-					// we've got a non-empty package name,
-					// updating the selected text
-					sel = text[i+1 : se]
-				}
-				break
-			}
-		}
-	}
-
-	ed.OnTopicChange(sel)
 }
 
 // ResizeTextarea resizes the height of the textarea
@@ -158,34 +114,7 @@ func (ed *Editor) Highlight(on bool) {
 }
 
 func (ed *Editor) onChange(e *vecty.Event) {
-	if ed.ta == nil {
-		console.Log("editor.onChange(): getTextarea() is nil!")
-		return
-	}
-	shouldFireSelChange := ed.Range != nil
-	ed.Range = nil
-	ed.WarningLines = nil
-	ed.ErrorLines = nil
-	ed.Highlight(ed.HighlightingMode)
 
-	t := *ed.ChangeTimer
-	if t == nil {
-		t = time.AfterFunc(saveStateTimeout, ed.saveState)
-		*ed.ChangeTimer = t
-	} else {
-		t.Stop()
-		t.Reset(saveStateTimeout)
-	}
-
-	ed.fireOnChangeEvent()
-	if shouldFireSelChange {
-		ed.fireOnLineSelChangeEvent()
-	}
-}
-
-func (ed *Editor) cancelEvent(e *vecty.Event) {
-	e.Call("preventDefault")
-	e.Call("stopPropagation")
 }
 
 // InsertText inserts text in place of selection
@@ -241,21 +170,13 @@ func (ed *Editor) fireOnChangeEvent() {
 	}
 }
 
-func (ed *Editor) fireOnLineSelChangeEvent() {
-	if ed.OnLineSelChange != nil {
-		ed.OnLineSelChange(ed.Range.String())
-	}
-}
-
 func (ed *Editor) resetLineSelection() {
 	if ed.Range.HasSelection() {
 		ed.Range.ClearSelection()
-		ed.fireOnLineSelChangeEvent()
 	}
 }
 
 func (ed *Editor) toggleLine(n int) {
-	defer ed.fireOnLineSelChangeEvent()
 
 	if ed.Range == nil {
 		ed.Range = &ranges.Range{}
@@ -323,162 +244,13 @@ func (ed *Editor) getIndent() int {
 }
 
 func (ed *Editor) handleKeyDown(e *vecty.Event) {
-	ed.shiftDown = e.Get("shiftKey").Bool()
-	ed.ctrlDown = e.Get("ctrlKey").Bool()
-	ed.metaDown = e.Get("metaKey").Bool()
-
 	if ed.ta == nil {
 		return
-	}
-
-	switch e.Get("keyCode").Int() {
-	case 84: // T
-		if ed.ctrlDown { // Ctrl+T
-			e.Call("preventDefault")
-			ed.toggleLineSelection()
-			return
-		}
-	case 8: // Backspace
-		before, after := ed.ta.GetSymbolsAroundSelection()
-
-		insidePair := false
-		switch before {
-		case `"`, "'", "`":
-			insidePair = before == after
-		case "(":
-			insidePair = after == ")"
-		case "[":
-			insidePair = after == "]"
-		case "{":
-			insidePair = after == "}"
-		}
-
-		if !insidePair {
-			break
-		}
-
-		ss, se := ed.GetSelection()
-		if ss != se || ss == -1 {
-			break
-		}
-
-		e.Call("preventDefault")
-		ed.SetSelection(ss-1, ss+1)
-		ed.InsertText("")
-		return
-	case 9: // Tab
-		e.Call("preventDefault")
-		ed.InsertText("\t")
-		return
-	case 13: // Enter
-		if !ed.shiftDown && !ed.ctrlDown && !ed.metaDown {
-			e.Call("preventDefault")
-			i := ed.getIndent()
-			before, after := ed.ta.GetSymbolsAroundSelection()
-			if before == "{" && after == "}" ||
-				before == "(" && after == ")" ||
-				before == "[" && after == "]" {
-				iAfter := i - 1
-				if iAfter < 0 {
-					iAfter = 0
-				}
-				ed.WrapSelection(
-					"\n"+strings.Repeat("\t", i),
-					"\n"+strings.Repeat("\t", iAfter))
-			} else {
-				ed.InsertText("\n" + strings.Repeat("\t", i))
-			}
-			return
-		}
-	case 27: // Esc
-		e.Call("preventDefault")
-		ed.resetLineSelection()
-		return
-	case 89: // Y
-		if ed.ctrlDown || ed.metaDown { // Ctrl+Y or Command+Y
-			e.Call("preventDefault")
-			ed.Redo()
-			return
-		}
-	case 90: // Z
-		if ed.ctrlDown || ed.metaDown {
-			e.Call("preventDefault")
-			if ed.shiftDown {
-				ed.Redo() // Shift+Ctrl+Z or Shift+Command+Z
-			} else {
-				ed.Undo() // Ctrl+Z or Command+Z
-			}
-			return
-		}
-	}
-
-	if ed.OnKeyDown != nil {
-		ed.OnKeyDown(e)
 	}
 }
 
 func (ed *Editor) handleKeyPress(e *vecty.Event) {
-	if ed.ta == nil {
-		return
-	}
-	before, after := ed.ta.GetSymbolsAroundSelection()
-	canWrapQuotes := (before == "" || strings.ContainsAny(before, " \n{([:=")) &&
-		(after == "" || strings.ContainsAny(after, " \n})]:="))
-	canWrapBraces := after == "" || strings.ContainsAny(after, " \n})]:=")
 
-	r := rune(e.Get("charCode").Int())
-	rs := string(r)
-
-	if canWrapQuotes {
-		switch r {
-		case '"', '\'', '`':
-			e.Call("preventDefault")
-			ed.WrapSelection(rs, rs)
-		}
-	}
-
-	if canWrapBraces {
-		switch r {
-		case '(':
-			e.Call("preventDefault")
-			ed.WrapSelection("(", ")")
-		case '[':
-			e.Call("preventDefault")
-			ed.WrapSelection("[", "]")
-		case '{':
-			e.Call("preventDefault")
-			ed.WrapSelection("{", "}")
-		}
-	}
-
-	switch r {
-	case ')', ']', '}', '"', '\'', '`':
-		if after != rs {
-			break
-		}
-
-		ss, se := ed.GetSelection()
-		if ss != se || ss == -1 {
-			break
-		}
-
-		e.Call("preventDefault")
-		ed.SetSelection(ss+1, ss+1)
-	}
-}
-
-func (ed *Editor) handleShadowMouseDown(e *vecty.Event) {
-	if e.Get("button").Int() != 0 {
-		return
-	}
-
-	e.Call("preventDefault")
-
-	ed.shiftDown = e.Get("shiftKey").Bool()
-	ed.ctrlDown = e.Get("ctrlKey").Bool()
-	ed.metaDown = e.Get("metaKey").Bool()
-
-	ed.toggleLine(e.Get("target").Get("data-index").Int())
 }
 
 func (ed *Editor) handleScrollerClick(e *vecty.Event) {
@@ -486,16 +258,7 @@ func (ed *Editor) handleScrollerClick(e *vecty.Event) {
 }
 
 func (ed *Editor) afterRender() {
-	list := js.Global.Get("document").Call("querySelectorAll", ".shadow ol li")
-	if list == nil || list.Length() == 0 || ed.sh == nil || ed.ta == nil {
-		time.AfterFunc(5*time.Millisecond, ed.afterRender)
-		return
-	}
-	n := list.Length()
-	for i := 0; i < n; i++ {
-		list.Index(i).Set("onmousedown", ed.handleShadowMouseDown)
-		list.Index(i).Set("data-index", i+1)
-	}
+
 }
 
 func (ed *Editor) updateStateFromRanges() {
@@ -571,7 +334,6 @@ func (ed *Editor) Render() vecty.ComponentOrHTML {
 				vecty.Property("readonly", ed.ReadonlyMode),
 				event.KeyDown(ed.handleKeyDown),
 				event.KeyPress(ed.handleKeyPress),
-				event.Select(ed.updateSelectionInfo),
 				event.Input(ed.onChange),
 			),
 		),
@@ -579,7 +341,6 @@ func (ed *Editor) Render() vecty.ComponentOrHTML {
 			vecty.Markup(
 				vecty.Class("shadow"),
 				vecty.UnsafeHTML(ed.highlighted),
-				event.ContextMenu(ed.cancelEvent),
 			),
 		),
 		elem.Style(
