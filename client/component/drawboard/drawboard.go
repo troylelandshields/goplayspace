@@ -480,16 +480,6 @@ func (b *DrawBoard) Render() vecty.ComponentOrHTML {
 		elem.Canvas(),
 	}
 
-	// var gophers []vecty.MarkupOrChild
-	// for id := range b.connectedActors {
-	// 	gophers = append(gophers, elem.Div(
-	// 		vecty.Markup(
-	// 			vecty.Property("id", "gopher"+id),
-	// 			vecty.Class("gopher"),
-	// 		),
-	// 	))
-	// }
-
 	return elem.Div(
 		vecty.Markup(
 			vecty.Class("canvas-lightbox"),
