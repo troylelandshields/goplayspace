@@ -120,6 +120,9 @@ func (a *Application) Mount() {
 	default:
 		a.onHashChange(a.Hash)
 	}
+
+	fmt.Println("Mounted")
+	a.doRun()
 }
 
 // Unmount implements the vecty.Unmounter interface.
@@ -128,14 +131,8 @@ func (a *Application) Unmount() {
 
 // Render renders the application
 func (a *Application) Render() vecty.ComponentOrHTML {
-	defer a.doRun()
-	//console.Time("app:render")
-	//defer console.TimeEnd("app:render")
-	fmt.Println("Rendering app")
-
 	if a.Hash == nil {
 		a.Hash = hash.New(a.onHashChange)
-		// a.updateStateFromHash(a.Hash)
 	}
 
 	return elem.Body(
@@ -149,11 +146,6 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 				vecty.Class("header"),
 			),
 		),
-		// elem.Div(
-		// 	vecty.Markup(
-		// 		vecty.Class("body-wrapper"),
-		// 	),
-		// ),
 		elem.Div(
 			vecty.Markup(
 				vecty.Class("body-wrapper"),
@@ -162,25 +154,14 @@ func (a *Application) Render() vecty.ComponentOrHTML {
 				vecty.Markup(
 					vecty.Class("content-wrapper"),
 				),
-				// a.editor,
 			),
 			elem.Div(
 				vecty.Markup(
 					vecty.Class("log-wrapper"),
 				),
-				// a.log,
-				// &splitter.Splitter{
-				// 	Selector:         ".log-wrapper",
-				// 	OppositeSelector: ".content-wrapper",
-				// 	Type:             splitter.BottomPane,
-				// 	MinSizePercent:   2,
-				// },
 			),
 		),
 
-		// elem.Div(drawboard.New(a.actions)),
 		vecty.If(a.isDrawingMode, a.DrawBoard),
-		// drawboard.New(a.actions),
-
 	)
 }

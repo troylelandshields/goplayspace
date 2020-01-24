@@ -262,21 +262,12 @@ func (b *DrawBoard) addSpeechBubble(x, y float64, s string) {
 }
 
 func (b *actor) doSubStep(db *DrawBoard, pos float64) {
-	// b.startX = b.startX + 5
-	// b.startY = b.startY + 5
-	// b.targetX = b.targetX + 5
-	// b.targetY = b.targetY + 5
-
 	oldX := b.x
 	oldY := b.y
 
 	b.x = (b.targetX-b.startX)*pos + b.startX
 	b.y = (b.targetY-b.startY)*pos + b.startY
 	b.angle = (b.targetAngle-b.startAngle)*pos + b.startAngle
-
-	// b.x = b.x + b.initialX
-	// b.y = b.y + b.initialY
-	//console.Log("x:", b.x, "y:", b.y, "angle:", b.angle)
 
 	cX := (db.w / 2) + b.initialX
 	cY := (db.h / 2) + b.initialY
@@ -411,16 +402,6 @@ func (b *DrawBoard) onRendered() {
 		b.initialized = true
 		window.AddEventListener("resize", b.onResize)
 		b.onResize()
-
-		// start the animation
-		// for k, actor := range b.connectedActors {
-		// 	fmt.Println("Animating", k)
-		// 	actor.animate(b)
-		// }
-
-		// t := time.Now()
-		// b.startTime = t
-		// b.targetTime = t.Add(stepDelay)
 	}
 }
 
@@ -436,7 +417,6 @@ func (b *DrawBoard) handleKeyDown(e *vecty.Event) {
 		b.accelerate = true
 		b.tabDown = true
 	default:
-		//console.Log(e.Get("key").String())
 	}
 }
 
