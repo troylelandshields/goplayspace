@@ -110,6 +110,8 @@ func New(aa draw.ActorsList) *DrawBoard {
 	// 	})
 	// }
 
+	fmt.Println("New Drawboard")
+
 	return &DrawBoard{
 		connectedActors: make(map[string]*actor),
 		actors:          aa,
@@ -487,19 +489,6 @@ func (b *DrawBoard) Render() vecty.ComponentOrHTML {
 	// 		),
 	// 	))
 	// }
-
-	// elems = append(elems, gophers...)
-	elems = append(elems, elem.Div(
-		vecty.Markup(
-			vecty.Class("statusbar-wrapper"),
-		),
-		elem.Div(
-			vecty.Markup(
-				vecty.Class("statusbar"),
-				vecty.UnsafeHTML("<kbd>Tab</kbd> or hold <kbd>Shift</kbd> to accelerate, <kbd>Esc</kbd> to close"),
-			),
-		),
-	))
 
 	return elem.Div(
 		vecty.Markup(
