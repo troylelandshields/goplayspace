@@ -30,7 +30,6 @@ const (
 )
 
 type Action struct {
-	// Actor int //TODO:get this to work
 	Cmd  string
 	Kind int
 	FVal float64

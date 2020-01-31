@@ -10,7 +10,7 @@ import (
 func main() {
 	vecty.SetTitle("Gophers")
 
-	actions := draw.New([]string{houseStr, squaresStr, "drawing mode"})
+	actions := draw.NewHTTPActorsList("http://localhost:8080")
 
 	a := &app.Application{
 		DrawBoard: drawboard.New(actions),

@@ -1,55 +1,18 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
-	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
-	"strings"
-	"time"
+	"sync/atomic"
+
+	"github.com/gorilla/mux"
 )
 
 const staticDir = "../static"
-
-const userAgent = "goplay.space/1.0 (https://goplay.space/)"
-
-// maxSnippetSize value taken from
-// https://github.com/golang/playground/blob/master/app/goplay/share.go
-const maxSnippetSize = 64 * 1024
-
-// FmtResponse is the response returned from
-// upstream play.golang.org/fmt request
-type FmtResponse struct {
-	Body  string
-	Error string
-}
-
-// CompileEvent represents individual
-// event record in CompileResponse
-type CompileEvent struct {
-	Message string
-	Kind    string
-	Delay   time.Duration
-}
-
-// CompileResponse is the response returned from
-// upstream play.golang.org/compile request
-type CompileResponse struct {
-	Body   *string
-	Events []*CompileEvent
-	Errors string
-}
-
-func gzPath(path string) string {
-	return staticDir + path + ".gz"
-}
 
 func main() {
 	port := flag.Int("p", 8080, "port to listen at")
@@ -64,10 +27,20 @@ func main() {
 
 	log.Printf("Listening on http://localhost:%d/", *port)
 
-	http.Handle("/", http.FileServer(http.Dir(staticDir)))
-	http.HandleFunc("/compile", compileHandler)
-	http.HandleFunc("/share", shareHandler)
-	http.HandleFunc("/load", loadHandler)
+	artists = make(map[string]Artist)
+	moves = make(map[string][]Move)
+
+	r := mux.NewRouter()
+	apiR := r.PathPrefix("/api/").Subrouter()
+	apiR.HandleFunc("/artists", CreateArtistsHandler).Methods(http.MethodPost)
+	apiR.HandleFunc("/artists", ArtistsHandler).Methods(http.MethodGet)
+	apiR.HandleFunc("/artists/{artistID}/moves", CreateMoveHandler).Methods(http.MethodPost)
+	apiR.HandleFunc("/artists/{artistID}/moves", MovesHandler).Methods(http.MethodGet)
+
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(staticDir)))
+
+	http.Handle("/", r)
+	// http.Handle("/", )
 
 	if _, err := os.Stat(gzPath("/client.js")); err == nil {
 		http.HandleFunc("/client.js", gzHandler)
@@ -79,126 +52,103 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*port), nil))
 }
 
-func doRequest(method, url, contentType string, body io.Reader) ([]byte, error) {
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, err
+type Artist struct {
+	ID   string
+	Name string
+}
+
+type Move struct {
+	ID          string
+	Description string
+
+	retreived bool
+}
+
+var (
+	artistsCount int32
+	moveCount    int32
+	artists      map[string]Artist
+	moves        map[string][]Move
+)
+
+func ArtistsHandler(w http.ResponseWriter, r *http.Request) {
+
+	var aa []Artist
+	for _, a := range artists {
+		aa = append(aa, a)
 	}
-	req.Header.Add("Content-Type", contentType)
-	req.Header.Add("User-Agent", userAgent)
-	response, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
 
-	var bodyBytes bytes.Buffer
-	_, err = io.Copy(&bodyBytes, io.LimitReader(response.Body, maxSnippetSize+1))
-	response.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-	if bodyBytes.Len() > maxSnippetSize {
-		return nil, errors.New("Snippet is too large")
-	}
-	return bodyBytes.Bytes(), nil
+	w.Header().Add("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	_ = encoder.Encode(aa)
 }
 
-func postForm(url string, data url.Values) ([]byte, error) {
-	return doRequest("POST", url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
-}
-
-func runShare(body io.Reader) ([]byte, error) {
-	return doRequest("POST", "https://play.golang.org/share", "text/plain", body)
-}
-
-func runImports(body *string) ([]byte, error) {
-	form := url.Values{}
-	form.Add("imports", "true")
-	form.Add("body", *body)
-
-	return postForm("https://play.golang.org/fmt", form)
-}
-
-func runCompile(body *string) ([]byte, error) {
-	form := url.Values{}
-	form.Add("body", *body)
-	form.Add("version", "2")
-
-	return postForm("https://play.golang.org/compile", form)
-}
-
-func compileHandler(w http.ResponseWriter, r *http.Request) {
+func CreateArtistsHandler(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	var artist Artist
+	err := decoder.Decode(&artist)
 	if err != nil {
-		http.Error(w, "Failed to read request data", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	body := string(bodyBytes)
+	id := "artist" + strconv.Itoa(int(atomic.AddInt32(&artistsCount, 1)))
 
-	bodyBytes, err = runImports(&body)
+	artist.ID = id
+	artists[id] = artist
+	moves[id] = append(moves[id], Move{Description: "say " + artist.Name})
+
+	w.Header().Add("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	_ = encoder.Encode(artist)
+}
+
+func MovesHandler(w http.ResponseWriter, r *http.Request) {
+	artistID := mux.Vars(r)["artistID"]
+
+	w.Header().Add("Content-Type", "application/json")
+	readyMoves, ok := moves[artistID]
+	if !ok {
+		readyMoves = []Move{}
+	}
+	encoder := json.NewEncoder(w)
+	encoder.Encode(readyMoves)
+
+	delete(moves, artistID)
+}
+
+func CreateMoveHandler(w http.ResponseWriter, r *http.Request) {
+	artistID := mux.Vars(r)["artistID"]
+	_, ok := artists[artistID]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	moveID := "move" + strconv.Itoa(int(atomic.AddInt32(&moveCount, 1)))
+
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+
+	var move Move
+	err := decoder.Decode(&move)
 	if err != nil {
-		log.Printf("runImports() error: %v", err)
-		http.Error(w, "Failed to format source code", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	fmtResponse := FmtResponse{}
+	move.ID = moveID
+	moves[artistID] = append(moves[artistID], move)
 
-	err = json.Unmarshal(bodyBytes, &fmtResponse)
-	if err != nil {
-		log.Printf("fmtResponse unmarshal error: %v", err)
-		http.Error(w, "Failed to decode upstream server response", http.StatusInternalServerError)
-		return
-	}
+	w.Header().Add("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	_ = encoder.Encode(move)
+}
 
-	if fmtResponse.Error != "" {
-		w.Write(bodyBytes)
-		return
-	}
-
-	bodyUpdated := fmtResponse.Body != body
-
-	bodyBytes, err = runCompile(&fmtResponse.Body)
-	if err != nil {
-		log.Printf("runCompile() error: %v", err)
-		http.Error(w, "Failed to compile source code", http.StatusInternalServerError)
-		return
-	}
-
-	if !bodyUpdated {
-		w.Write(bodyBytes)
-		return
-	}
-
-	// return a new payload with the formatted body
-
-	compileResponse := CompileResponse{}
-
-	err = json.Unmarshal(bodyBytes, &compileResponse)
-	if err != nil {
-		log.Printf("compileResponse unmarshal error: %v", err)
-		http.Error(w, "Failed to decode upstream server response", http.StatusInternalServerError)
-		return
-	}
-
-	compileResponse.Body = &fmtResponse.Body
-
-	bodyBytes, err = json.Marshal(compileResponse)
-	if err != nil {
-		log.Printf("compileResponse marshal error: %v", err)
-		http.Error(w, "Failed to encode data", http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(bodyBytes)
+func gzPath(path string) string {
+	return staticDir + path + ".gz"
 }
 
 func gzHandler(w http.ResponseWriter, r *http.Request) {
@@ -206,49 +156,4 @@ func gzHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Encoding", "gzip")
 	http.ServeFile(w, r, gzPath(r.URL.Path))
 	return
-}
-
-func shareHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	bodyBytes, err := runShare(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to send share request", http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(bodyBytes)
-}
-
-func loadHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	response, err := http.Get("https://play.golang.org/p/" + r.URL.RawQuery + ".go")
-	if err != nil {
-		http.Error(w, "Failed to load snippet", http.StatusInternalServerError)
-		return
-	}
-	defer response.Body.Close()
-
-	bodyBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		http.Error(w, "Failed to read data", http.StatusInternalServerError)
-	}
-
-	if response.StatusCode != http.StatusOK {
-		http.Error(w, string(bodyBytes), response.StatusCode)
-		return
-	}
-
-	w.Write(bodyBytes)
 }

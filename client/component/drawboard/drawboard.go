@@ -322,6 +322,7 @@ func (b *actor) doStep(db *DrawBoard) {
 		if !ok {
 			return
 		}
+		fmt.Println("HERE", a)
 
 		delay := stepDelay
 
